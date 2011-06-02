@@ -1,17 +1,14 @@
 package jp.a840.push.publisher;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.math.BigDecimal;
 import java.util.Date;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import jp.a840.push.beans.RateBean;
@@ -19,15 +16,14 @@ import jp.a840.push.subscriber.exception.InitializeException;
 import jp.a840.push.subscriber.grizzly.RateWebSocket;
 
 import org.apache.commons.lang.math.RandomUtils;
-import org.glassfish.grizzly.Connection;
-import org.glassfish.grizzly.websockets.ServerWebSocketMeta;
+import org.glassfish.grizzly.http.HttpRequestPacket;
+import org.glassfish.grizzly.websockets.WebSocket;
 import org.glassfish.grizzly.websockets.WebSocketApplication;
-import org.glassfish.grizzly.websockets.frame.Frame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-	public class DummyRateApplication extends WebSocketApplication<RateWebSocket> {
+	public class DummyRateApplication extends WebSocketApplication {
 
 	private Logger log = LoggerFactory.getLogger(DummyRateApplication.class);
 	
@@ -43,24 +39,16 @@ import org.slf4j.LoggerFactory;
 		}
 	}	
 	
-	@Override
-	public void onAccept(RateWebSocket websocket) throws IOException {
-		super.onAccept(websocket);
-		log.info("accept");
-	}
-
-
 
 	@Override
-	public void onClose(RateWebSocket websocket) throws IOException {
+    public void onClose(WebSocket websocket) {
 		log.info("close");
 		super.onClose(websocket);
 	}
 
-	public void onMessage(RateWebSocket websocket, Frame frame)
+	public void onMessage(RateWebSocket websocket, String text)
 			throws IOException {
 		log.info("message");
-		String text = frame.getAsText();
 		String[] params = text.split(":");
 		if("UPDATE INTERVAL".equalsIgnoreCase(params[0])){
 			updateInterval.set(Integer.valueOf(params[1]));
@@ -79,12 +67,6 @@ import org.slf4j.LoggerFactory;
 		}
 	}
 	
-	@Override
-	protected RateWebSocket createWebSocket(Connection connection,
-			ServerWebSocketMeta meta) {
-		return new RateWebSocket(connection, meta, this);
-	}
-
 	public void startSubscribe() throws Exception {
 		executorService = Executors.newFixedThreadPool(30);
 		
@@ -98,8 +80,9 @@ import org.slf4j.LoggerFactory;
 			public void run() {
 				try{
 					while(it.hasNext()){
-						for(final RateWebSocket rws : getWebSockets()){
-							rws.sendRate(it.next());
+						byte[] bytes = serializeRateBean(it.next());
+						for(final WebSocket rws : getWebSockets()){
+							rws.send(bytes);
 						}
 						Thread.sleep(RandomUtils.nextInt(updateInterval.get()));
 					}
@@ -109,11 +92,28 @@ import org.slf4j.LoggerFactory;
 			}
 		});		
 	}
+
+	public byte[] serializeRateBean(RateBean rate){
+		try{
+			ByteArrayOutputStream baos = new ByteArrayOutputStream();
+			ObjectOutputStream oos = new ObjectOutputStream(baos);
+			oos.writeObject(rate);
+			return baos.toByteArray();
+		}catch(IOException e){
+			;
+		}
+		return null;
+	}
 	
 	public void stopSubscribe(){
 	}
 	
 	public void addSubscribe(String destination, String messageSelector){
+	}
+
+	@Override
+	public boolean isApplicationRequest(HttpRequestPacket request) {
+		return "/rate".equals(request.getRequestURI());
 	}
 
 	public class RateGenerateIterator implements Iterator<RateBean> {

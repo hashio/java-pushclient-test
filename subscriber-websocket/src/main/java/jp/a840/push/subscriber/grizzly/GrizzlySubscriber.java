@@ -7,8 +7,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.URI;
 import java.util.Properties;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import jp.a840.push.beans.RateBean;
 import jp.a840.push.subscriber.AbstractSubscriber;
@@ -20,13 +18,9 @@ import jp.a840.push.subscriber.exception.TimeoutException;
 import jp.a840.push.subscriber.listener.CompositeMessageListener;
 import jp.a840.push.subscriber.listener.MessageListener;
 
-import org.glassfish.grizzly.Buffer;
-import org.glassfish.grizzly.TransportFactory;
-import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
+import org.glassfish.grizzly.websockets.ClientWebSocket;
 import org.glassfish.grizzly.websockets.WebSocket;
-import org.glassfish.grizzly.websockets.WebSocketClientHandler;
-import org.glassfish.grizzly.websockets.WebSocketConnectorHandler;
-import org.glassfish.grizzly.websockets.frame.Frame;
+import org.glassfish.grizzly.websockets.WebSocketListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,9 +35,6 @@ import org.slf4j.LoggerFactory;
 public class GrizzlySubscriber extends AbstractSubscriber {
 	private Logger log = LoggerFactory.getLogger(GrizzlySubscriber.class);
 
-	// Grizzly
-	private final TCPNIOTransport transport;
-	
 	private WebSocket websocket = null;
 	
 	private String location;
@@ -57,7 +48,6 @@ public class GrizzlySubscriber extends AbstractSubscriber {
 	 */
 	public GrizzlySubscriber() {
 		super();
-		transport = TransportFactory.getInstance().createTCPTransport();
 	}
 
 	public GrizzlySubscriber(String propertyPath) throws FileNotFoundException,IOException {
@@ -120,13 +110,8 @@ public class GrizzlySubscriber extends AbstractSubscriber {
 		}
 
 		prepareConnect();
-		// メッセージの配送をスタート
-		transport.start();
-		WebSocketConnectorHandler connectorHandler = new WebSocketConnectorHandler(transport);
-		Future<WebSocket> connectFuture = connectorHandler.connect(
-				new URI(location), new GrizzlySubscriberClientHandler());
-
-		websocket = (WebSocket) connectFuture.get(connectionTimeout, TimeUnit.SECONDS);
+		ClientWebSocket clientWebSocket = new ClientWebSocket(new URI(location), new GrizzlySubscriberClientHandler());
+		websocket = clientWebSocket.connect(connectionTimeout * 1000);
 		super.connect();
 	}
 
@@ -144,13 +129,6 @@ public class GrizzlySubscriber extends AbstractSubscriber {
 			}
 		}
 		
-		if(!transport.isStopped()){
-			try{
-				transport.stop();
-			}catch(Exception e){
-				log.error("Can't stop transport.", e);
-			}
-		}
 		super.disconnect();
 	}
 
@@ -164,25 +142,28 @@ public class GrizzlySubscriber extends AbstractSubscriber {
     /* -------------------------------------------------------- *
      *       WebSocket Client Handler 
      * -------------------------------------------------------- */
-	public class GrizzlySubscriberClientHandler extends WebSocketClientHandler<WebSocket> {
+	public class GrizzlySubscriberClientHandler implements WebSocketListener {
 
-		public void onConnect(WebSocket websocket) throws IOException {
+		public void onPing(byte[] arg0) {
+			
+		}
+
+		public void onConnect(WebSocket websocket) {
 			System.out.println("CONNECTED!");
 		}
 
-		public void onClose(WebSocket websocket) throws IOException {
+		public void onClose(WebSocket websocket) {
 			System.out.println("CLOSE!");
 		}
 
-		public void onMessage(WebSocket websocket, Frame frame)
-				throws IOException {
+		public void onMessage(WebSocket websocket, String msg) {
+		}
+		
+		public void onMessage(WebSocket websocket, byte[] bytes) {
             try {
                 if(quit){
                     return;
                 }
-                Buffer buffer = frame.getAsBinary();
-                byte[] bytes = new byte[buffer.limit() - buffer.position()];
-                buffer.get(bytes);
                 ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
                 ObjectInputStream ois = new ObjectInputStream(bais);
                 Object msg = ois.readObject();

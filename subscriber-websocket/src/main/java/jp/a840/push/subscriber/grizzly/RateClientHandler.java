@@ -6,40 +6,36 @@ import java.io.ObjectInputStream;
 
 import jp.a840.push.beans.RateBean;
 
-import org.glassfish.grizzly.Buffer;
-import org.glassfish.grizzly.Connection;
-import org.glassfish.grizzly.websockets.ClientWebSocketMeta;
-import org.glassfish.grizzly.websockets.WebSocketClientHandler;
-import org.glassfish.grizzly.websockets.frame.Frame;
+import org.glassfish.grizzly.websockets.WebSocket;
+import org.glassfish.grizzly.websockets.WebSocketListener;
 
 
-public class RateClientHandler extends WebSocketClientHandler<RateWebSocket> {
+public class RateClientHandler implements WebSocketListener {
 
-	public void onConnect(RateWebSocket websocket) throws IOException {
+	public void onConnect(WebSocket websocket) {
 		System.out.println("CONNECTED!");
 	}
 
-	public void onClose(RateWebSocket websocket) throws IOException {
+	public void onClose(WebSocket websocket) {
 		System.out.println("CLOSE!");
 	}
 
-	public void onMessage(RateWebSocket websocket, Frame frame)
-			throws IOException {
-			Buffer buffer = frame.getAsBinary();
-			byte[] bytes = new byte[buffer.limit() - buffer.position()];
-			buffer.get(bytes);
+	public void onMessage(WebSocket websocket, byte[] bytes) {
 		ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-		ObjectInputStream ois = new ObjectInputStream(bais);
 		try{
+			ObjectInputStream ois = new ObjectInputStream(bais);
 			RateBean dto = (RateBean)ois.readObject();
 			System.out.println(dto.getBid());
 		}catch(ClassNotFoundException e){
 			e.printStackTrace();
+		}catch(IOException e){
+			e.printStackTrace();
 		}			
 	}
 
-	protected RateWebSocket createWebSocket(Connection connection,
-			ClientWebSocketMeta meta) {
-		return new RateWebSocket(connection, meta, this);
+	public void onMessage(WebSocket websocket, String message) {		
+	}
+
+	public void onPing(byte[] bytes) {
 	}
 }

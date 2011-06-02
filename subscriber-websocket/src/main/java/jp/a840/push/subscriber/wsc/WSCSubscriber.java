@@ -7,7 +7,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.nio.ByteBuffer;
 import java.util.Properties;
-import java.util.Random;
 
 import jp.a840.push.beans.RateBean;
 import jp.a840.push.subscriber.AbstractSubscriber;
@@ -21,12 +20,10 @@ import jp.a840.push.subscriber.listener.CompositeMessageListener;
 import jp.a840.push.subscriber.listener.ExceptionListener;
 import jp.a840.push.subscriber.listener.MessageListener;
 import jp.a840.websocket.WebSocket;
-import jp.a840.websocket.WebSocketDraft76;
 import jp.a840.websocket.WebSocketException;
 import jp.a840.websocket.WebSocketHandlerAdapter;
 import jp.a840.websocket.WebSockets;
 import jp.a840.websocket.frame.Frame;
-import jp.a840.websocket.handler.PacketDumpStreamHandler;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +71,7 @@ public class WSCSubscriber extends AbstractSubscriber {
 	 */
 	public void init() throws InitializeException {
 		try{
-			websocket = WebSockets.createDraft76(location,new WSCSubscriberClientHandler());
+			websocket = WebSockets.createDraft06(location,new WSCSubscriberClientHandler());
 			websocket.setBlockingMode(false);
 		}catch(Exception e){
 				throw new InitializeException(e);

@@ -1,10 +1,10 @@
 package jp.a840.push.publisher;
 
-import org.glassfish.grizzly.TransportFactory;
 import org.glassfish.grizzly.filterchain.FilterChainBuilder;
 import org.glassfish.grizzly.filterchain.TransportFilter;
 import org.glassfish.grizzly.http.HttpServerFilter;
 import org.glassfish.grizzly.nio.transport.TCPNIOTransport;
+import org.glassfish.grizzly.nio.transport.TCPNIOTransportBuilder;
 import org.glassfish.grizzly.websockets.WebSocketEngine;
 import org.glassfish.grizzly.websockets.WebSocketFilter;
 import org.slf4j.Logger;
@@ -18,18 +18,19 @@ public class Main
 	
     public static void main( String[] args ) throws Exception
     {
+
     	FilterChainBuilder serverFilterChainBuilder = FilterChainBuilder.stateless();
     	serverFilterChainBuilder.add(new TransportFilter());
     	serverFilterChainBuilder.add(new HttpServerFilter());
     	serverFilterChainBuilder.add(new WebSocketFilter());
-    	
-    	TCPNIOTransport transport = TransportFactory.getInstance().createTCPTransport();
+    	  	
+    	TCPNIOTransport transport = TCPNIOTransportBuilder.newInstance().build();
     	transport.setProcessor(serverFilterChainBuilder.build());
     	
 //    	final RateApplication application = new RateApplication();
     	final DummyRateApplication application = new DummyRateApplication();
     	
-    	WebSocketEngine.getEngine().registerApplication("/rate", application);
+    	WebSocketEngine.getEngine().register("/rate", application);
     	try{
     		transport.bind(PORT);
     		transport.start();
@@ -42,7 +43,6 @@ public class Main
     	}finally{
     		application.stopSubscribe();
     		transport.stop();
-    		TransportFactory.getInstance().close();
     	}
     }
 }

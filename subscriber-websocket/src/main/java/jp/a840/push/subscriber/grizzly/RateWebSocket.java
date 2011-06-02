@@ -8,23 +8,20 @@ import jp.a840.push.beans.RateBean;
 
 import org.glassfish.grizzly.Connection;
 import org.glassfish.grizzly.memory.ByteBufferManager;
-import org.glassfish.grizzly.websockets.WebSocketBase;
-import org.glassfish.grizzly.websockets.WebSocketHandler;
-import org.glassfish.grizzly.websockets.WebSocketMeta;
-import org.glassfish.grizzly.websockets.frame.Frame;
+import org.glassfish.grizzly.websockets.BaseWebSocket;
+import org.glassfish.grizzly.websockets.WebSocketListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class RateWebSocket extends WebSocketBase {
+public class RateWebSocket extends BaseWebSocket {
 
 	private Logger log = LoggerFactory.getLogger(RateWebSocket.class);
 	
 	private ByteBufferManager byteBufferManager = new ByteBufferManager();
 	
-	public RateWebSocket(Connection connection, WebSocketMeta meta,
-			WebSocketHandler handler) {
-		super(connection, meta, handler);
+	public RateWebSocket(Connection connection, WebSocketListener... listeners) {
+		super(connection, listeners);
 	}
 
 	public void sendRate(RateBean rate){
@@ -33,8 +30,7 @@ public class RateWebSocket extends WebSocketBase {
 			ObjectOutputStream oos = new ObjectOutputStream(baos);
 			oos.writeObject(rate);
 
-			Frame frame = Frame.createFrame(0xFF, byteBufferManager.wrap(baos.toByteArray()));
-			send(frame);
+			send(baos.toByteArray());
 		}catch(IOException e){
 			log.error("Caught exception.", e);
 		}
